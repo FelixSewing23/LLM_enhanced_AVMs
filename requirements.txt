@@ -1,0 +1,28 @@
+# Core dependencies for the analysis pipeline
+# For full dev environment, use: pip install -r requirements-dev.txt
+
+# Core
+pandas==2.3.3
+numpy==2.4.3
+pyarrow==23.0.1
+
+# LLM
+openai>=1.30
+pydantic>=2.5
+
+# Modeling
+statsmodels>=0.14
+scikit-learn==1.8.0
+xgboost==3.2.0
+shap==0.51.0
+scipy>=1.11
+
+# Visualization
+matplotlib>=3.8
+seaborn>=0.13
+plotly==6.6.0
+pydeck>=0.9
+
+# Env
+python-dotenv>=1.0
+requests>=2.31

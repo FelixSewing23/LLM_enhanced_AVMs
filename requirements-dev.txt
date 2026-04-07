@@ -1,0 +1,19 @@
+# Full development dependencies (local dev, notebooks, testing)
+# Inherits all app-runtime deps from requirements.txt
+-r requirements.txt
+
+# Notebook / Analysis
+jupyter
+notebook>=7.0
+ipykernel>=6.0
+nbconvert>=7.0
+nbstripout>=0.7
+
+# Data collection
+apify-client>=1.6
+
+# Static export
+kaleido>=0.2
+
+# Testing
+pytest>=8.0
