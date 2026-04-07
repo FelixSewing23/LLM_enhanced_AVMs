@@ -687,6 +687,73 @@ def partial_f_test_from_ssr_models(
     return result
 
 
+def linearity_f_test_scores(
+    y: pd.Series,
+    score_df: pd.DataFrame,
+    alpha: float = 0.05,
+) -> pd.DataFrame:
+    """F-test for linearity of each LLM score against the target.
+
+    For each score column, fits two bivariate models on rows where the
+    score is observed (non-zero, since 0 is the missing sentinel):
+
+    - **Restricted** (linear): ``y ~ const + score``  (2 parameters)
+    - **Unrestricted** (dummies): ``y ~ const + I(score==2) + ... + I(score==k)``
+
+    The F-statistic tests whether the unrestricted dummy specification
+    explains significantly more variance than the linear specification.
+    A significant result (p < alpha) indicates non-linearity.
+
+    Parameters
+    ----------
+    y        : log-price target, same index as score_df
+    score_df : DataFrame whose columns are ordinal LLM scores (1-5 scale,
+               0 = missing sentinel). Columns should be the raw ``llm_*_score``
+               columns **before** any imputation.
+    alpha    : significance level for the verdict (default 0.05)
+
+    Returns
+    -------
+    DataFrame with columns: Score, F, p, Verdict
+    """
+    rows = []
+    for col in score_df.columns:
+        mask = score_df[col] > 0  # drop missing-sentinel zeros
+        yi = y.loc[mask]
+        si = score_df.loc[mask, col]
+
+        # Restricted: linear
+        X_r = sm.add_constant(si, has_constant="add")
+        ols_r = sm.OLS(yi, X_r).fit()
+
+        # Unrestricted: dummies for each observed level
+        dummies = pd.get_dummies(si.astype(int), drop_first=True, dtype=float)
+        X_u = sm.add_constant(dummies, has_constant="add")
+        ols_u = sm.OLS(yi, X_u).fit()
+
+        df1 = ols_u.df_model - ols_r.df_model  # extra params in unrestricted
+        df2 = int(ols_u.df_resid)
+        if df1 > 0 and df2 > 0:
+            f_stat = ((ols_r.ssr - ols_u.ssr) / df1) / (ols_u.ssr / df2)
+            p_val = float(stats.f.sf(f_stat, df1, df2))
+        else:
+            f_stat, p_val = np.nan, np.nan
+
+        short_name = col.replace("llm_", "").replace("_score", "")
+        verdict = "Non-linear" if p_val < alpha else "Linear OK"
+        rows.append({
+            "Score": short_name,
+            "F": round(f_stat, 2),
+            "p": float(f"{p_val:.4g}"),
+            "Verdict": verdict,
+        })
+        logger.info(
+            f"[linearity F-test] {short_name}: F={f_stat:.2f}  p={p_val:.4g}  → {verdict}"
+        )
+
+    return pd.DataFrame(rows)
+
+
 def marginal_feature_contribution(
     X_base: pd.DataFrame,
     y: pd.Series,
